@@ -8,12 +8,12 @@
 | TeamName    |      RandomAhGroup     |
 | Captain     |       Ryan Zhu         |
 | Captain     |  ryanzhu2@illinois.edu |
-| Member1     |        Kevin Pei       |
-| Member1     |   kevin2@illinois.edu  |
-| Member2     |     Ti-Chung Cheng     |
-| Member2     |  tichung3@illinois.edu |
-| Member3     |                        |
-| Member3     |                        |
+| Member1     |        Darren Lin      |
+| Member1     |  darrenl5@illinois.edu |
+| Member2     |     Aansh Devpura      |
+| Member2     |  devpura2@illinois.edu |
+| Member3     |      Chase Gunlicks    |
+| Member3     | chasong2@illinois.edu  |
 
 ## Project Information
 
