@@ -12,7 +12,7 @@
 | Member1     |  darrenl5@illinois.edu |
 | Member2     |     Aansh Devpura      |
 | Member2     |  devpura2@illinois.edu |
-| Member3     |      Chase Gunlicks    |
+| Member3     |      Chason Gunlicks   |
 | Member3     | chasong2@illinois.edu  |
 
 ## Project Information
