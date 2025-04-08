@@ -170,6 +170,10 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.send('Hello World');
+});
+
 app.post('/api/auth/refresh-token', authenticateToken, async (req, res) => {
   try {
     // Generate new JWT with extended expiration
