@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { 
   Box, 
@@ -23,9 +23,20 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-  useDisclosure
+  useDisclosure,
+  FormControl,
+  FormLabel,
+  Input,
+  FormHelperText,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton
 } from "@chakra-ui/react";
-import { FiMapPin, FiCalendar, FiEye, FiTrash2 } from "react-icons/fi";
+import { FiMapPin, FiCalendar, FiEye, FiTrash2, FiEdit } from "react-icons/fi";
 import { itineraryService } from "../services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -38,8 +49,13 @@ function MyItinerariesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [itineraryToDelete, setItineraryToDelete] = useState(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const cancelRef = React.useRef();
+  const [itineraryToEdit, setItineraryToEdit] = useState(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const cancelRef = useRef();
   const toast = useToast();
   const navigate = useNavigate();
   
@@ -97,7 +113,7 @@ function MyItinerariesPage() {
     }
   };
   
-  // Add a function to ensure auth is valid before deletion
+  // Add a function to ensure auth is valid before deletion or updates
   const ensureValidAuth = async () => {
     const token = localStorage.getItem('token');
     
@@ -136,9 +152,28 @@ function MyItinerariesPage() {
     // Ensure valid authentication before proceeding
     if (await ensureValidAuth()) {
       setItineraryToDelete(itinerary);
-      onOpen();
+      onDeleteOpen();
     }
   };
+  
+  const handleEditClick = async (itinerary) => {
+    // Ensure valid authentication before proceeding
+    if (await ensureValidAuth()) {
+      setItineraryToEdit(itinerary);
+      setStartDate(itinerary.start_date);
+      setEndDate(itinerary.end_date);
+      onEditOpen();
+    }
+  };
+  
+  // Validation function for date inputs
+  const isEndDateValid = () => {
+    if (!startDate || !endDate) return true;
+    return new Date(endDate) >= new Date(startDate);
+  };
+  
+  // Get today's date in YYYY-MM-DD format for min date attribute
+  const today = new Date().toISOString().split('T')[0];
   
   const confirmDelete = async () => {
     if (!itineraryToDelete) return;
@@ -194,15 +229,79 @@ function MyItinerariesPage() {
       });
     } finally {
       setItineraryToDelete(null);
-      onClose();
+      onDeleteClose();
+    }
+  };
+  
+  const handleUpdateItinerary = async () => {
+    if (!itineraryToEdit) return;
+    
+    // Validate dates
+    if (!isEndDateValid()) {
+      toast({
+        title: "Invalid dates",
+        description: "End date must be after start date",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    setIsUpdating(true);
+    
+    try {
+      const itineraryId = itineraryToEdit.id;
+      console.log("Updating itinerary ID:", itineraryId);
+      
+      const itineraryData = {
+        city: itineraryToEdit.destination_city,
+        state: itineraryToEdit.destination_state,
+        startDate: startDate,
+        endDate: endDate
+      };
+      
+      await itineraryService.updateItinerary(itineraryId, itineraryData);
+      
+      // Update the itinerary in state
+      setItineraries(itineraries.map(i => {
+        if (i.id === itineraryId) {
+          return {
+            ...i,
+            start_date: startDate,
+            end_date: endDate
+          };
+        }
+        return i;
+      }));
+      
+      toast({
+        title: "Itinerary updated",
+        description: `Your trip dates for ${itineraryToEdit.destination_city} have been updated.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      onEditClose();
+    } catch (err) {
+      console.error("Error updating itinerary:", err);
+      
+      toast({
+        title: "Error updating itinerary",
+        description: err.message || err.response?.data?.message || "Something went wrong",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
   
   const handleViewItinerary = (itinerary) => {
     navigate("/itinerary-view", { state: { itinerary } });
-
   };
-  
   
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -356,6 +455,15 @@ function MyItinerariesPage() {
                         View
                       </Button>
                       <Button
+                        leftIcon={<FiEdit />}
+                        colorScheme="blue"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditClick(itinerary)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
                         leftIcon={<FiTrash2 />}
                         colorScheme="red"
                         variant="ghost"
@@ -379,9 +487,9 @@ function MyItinerariesPage() {
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog
-        isOpen={isOpen}
+        isOpen={isDeleteOpen}
         leastDestructiveRef={cancelRef}
-        onClose={onClose}
+        onClose={onDeleteClose}
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
@@ -394,7 +502,7 @@ function MyItinerariesPage() {
             </AlertDialogBody>
 
             <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onClose}>
+              <Button ref={cancelRef} onClick={onDeleteClose}>
                 Cancel
               </Button>
               <Button colorScheme="red" onClick={confirmDelete} ml={3}>
@@ -404,8 +512,62 @@ function MyItinerariesPage() {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
+      
+      {/* Edit Itinerary Modal */}
+      <Modal isOpen={isEditOpen} onClose={onEditClose} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit Trip Dates</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Text mb={4}>
+              Update your trip dates to {itineraryToEdit?.destination_city}, {itineraryToEdit?.destination_state}
+            </Text>
+            
+            <FormControl isRequired mb={4}>
+              <FormLabel>Start Date</FormLabel>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                min={today}
+              />
+            </FormControl>
+            
+            <FormControl isRequired isInvalid={!isEndDateValid()}>
+              <FormLabel>End Date</FormLabel>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || today}
+              />
+              {!isEndDateValid() && (
+                <FormHelperText color="red.500">
+                  End date must be after start date
+                </FormHelperText>
+              )}
+            </FormControl>
+          </ModalBody>
+          
+          <ModalFooter>
+            <Button colorScheme="gray" mr={3} onClick={onEditClose}>
+              Cancel
+            </Button>
+            <Button 
+              colorScheme="brand" 
+              onClick={handleUpdateItinerary}
+              isLoading={isUpdating}
+              loadingText="Updating..."
+              isDisabled={!isEndDateValid()}
+            >
+              Update Dates
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
 
-export default MyItinerariesPage; 
+export default MyItinerariesPage;
