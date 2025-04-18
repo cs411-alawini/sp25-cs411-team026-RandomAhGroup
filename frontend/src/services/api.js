@@ -205,10 +205,6 @@ export const itineraryService = {
   addItineraryItem: async (itineraryId, itemData) => {
     return api.post(`/itineraries/${itineraryId}/items`, {
       attraction_id: itemData.attractionId,
-      day_number: itemData.dayNumber,
-      start_time: itemData.startTime,
-      end_time: itemData.endTime,
-      notes: itemData.notes
     });
   },
   
@@ -221,11 +217,19 @@ export const itineraryService = {
       notes: itemData.notes
     });
   },
+
+  // Get all attractions for a specific itinerary
+  getItineraryItems: async (itineraryId) => {
+    return api.get(`/itineraries/${itineraryId}/attractions`);
+  },
   
   // Delete an itinerary item
   deleteItineraryItem: async (itineraryId, itemId) => {
-    return api.delete(`/itineraries/${itineraryId}/items/${itemId}`);
+    return api.delete(`/itineraries/${itineraryId}/items`, {
+      data: { item_id: itemId },
+    });
   },
+  
   
   // Reorder itinerary items (change day or sequence)
   reorderItems: async (itineraryId, reorderData) => {
@@ -240,28 +244,28 @@ export const itineraryService = {
   // Generate an optimized itinerary based on user preferences
   generateOptimizedItinerary: async (itineraryId) => {
     return api.post(`/itineraries/${itineraryId}/optimize`);
-  }
-};
+  },
 
-// Attraction services
-export const attractionService = {
-  getAttractions: async (filters = {}) => {
-    return api.get('/attractions', { params: filters });
-  },
-  
-  getAttraction: async (id) => {
-    return api.get(`/attractions/${id}`);
-  },
-  
-  searchAttractions: async (query) => {
-    return api.get('/attractions/search', { params: { q: query } });
-  },
-  
-  getAttractionsByLocation: async (lat, lng, radius) => {
-    return api.get('/attractions/nearby', { 
-      params: { lat, lng, radius } 
+  searchAttractions: async (city, state, orderBy = 'popularity') => {
+    return api.get('/itineraries/search', {
+      params: {
+        city,
+        state,
+        orderBy,
+      },
     });
-  }
+  },
+
+  ValidityCityState: async (city, state) => {
+    return api.get('/itineraries/validate', {
+      params: {
+        city,
+        state,
+      },
+    });
+  },
 };
 
-export default { authService, userService, itineraryService, attractionService }; 
+
+
+export default { authService, userService, itineraryService }; 

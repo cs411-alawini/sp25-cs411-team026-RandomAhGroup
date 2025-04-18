@@ -4,6 +4,7 @@ import SignIn from "./pages/SignIn";
 import Register from "./pages/Register"; 
 import TripPlanningPage from "./pages/TripPlanningPage";
 import MyItinerariesPage from "./pages/MyItinerariesPage";
+import ItineraryViewPage from "./pages/ItineraryViewPage";
 import NavBar from "./components/NavBar";
 import { Box } from "@chakra-ui/react";
 
@@ -40,6 +41,14 @@ function App() {
           element={
             <Layout>
               <MyItinerariesPage />
+            </Layout>
+          } 
+        />
+        <Route 
+          path="/itinerary-view" 
+          element={
+            <Layout>
+              <ItineraryViewPage />
             </Layout>
           } 
         />

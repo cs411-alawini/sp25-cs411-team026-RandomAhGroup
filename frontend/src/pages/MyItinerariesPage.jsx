@@ -198,11 +198,11 @@ function MyItinerariesPage() {
     }
   };
   
-  const handleViewItinerary = (itineraryId) => {
-    // For now, redirect to trip planning page
-    // In the future, this would go to a detailed itinerary view
-    navigate(`/trip-planning`);
+  const handleViewItinerary = (itinerary) => {
+    navigate("/itinerary-view", { state: { itinerary } });
+
   };
+  
   
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -341,13 +341,6 @@ function MyItinerariesPage() {
                         </Text>
                       </HStack>
                     </HStack>
-                    
-                    <HStack>
-                      <FiMapPin />
-                      <Text fontSize="sm" color="gray.500">
-                        {itinerary.items?.length || 0} attractions planned
-                      </Text>
-                    </HStack>
                   </CardBody>
                   
                   <Divider borderColor={cardBorder} />
@@ -358,7 +351,7 @@ function MyItinerariesPage() {
                         leftIcon={<FiEye />}
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleViewItinerary(itinerary.id || itinerary.itinerary_id)}
+                        onClick={() => handleViewItinerary(itinerary)}
                       >
                         View
                       </Button>

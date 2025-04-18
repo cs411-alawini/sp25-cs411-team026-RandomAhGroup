@@ -46,31 +46,39 @@ function TripPlanner() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    
+  
     // Validate user is logged in
     if (!authService.isAuthenticated()) {
       setError("You must be logged in to create an itinerary.");
       setIsLoading(false);
       return;
     }
-    
+  
     // Validate dates
     if (!isEndDateValid()) {
       setError("End date must be after start date.");
       setIsLoading(false);
       return;
     }
-
+  
     try {
+      // 🔍 Check if the city and state combination is valid
+      const validityResponse = await itineraryService.ValidityCityState(city, state);
+      if (!validityResponse?.data?.valid) {
+        setError("The specified city and state are not in our database.");
+        setIsLoading(false);
+        return;
+      }
+  
       const itineraryData = {
         city,
         state,
         startDate,
         endDate,
       };
-
+  
       const response = await itineraryService.createItinerary(itineraryData);
-      
+  
       toast({
         title: "Itinerary created!",
         description: `Your trip to ${city}, ${state} has been successfully planned.`,
@@ -78,20 +86,17 @@ function TripPlanner() {
         duration: 5000,
         isClosable: true,
       });
-      
-      // Navigate to My Itineraries page
+  
       navigate("/my-itineraries");
-      
     } catch (err) {
       console.error("Error creating itinerary:", err);
-      
-      // Handle specific error cases
+  
       if (err.response?.status === 401) {
         setError("Your session has expired. Please sign in again.");
         navigate("/sign-in");
       } else {
         setError(
-          err.response?.data?.message || 
+          err.response?.data?.message ||
           "There was an error creating your itinerary. Please try again."
         );
       }
@@ -99,6 +104,7 @@ function TripPlanner() {
       setIsLoading(false);
     }
   };
+  
 
   const cardBg = useColorModeValue("white", "gray.800");
   const inputBg = useColorModeValue("gray.50", "gray.700");
@@ -144,7 +150,7 @@ function TripPlanner() {
                     <Input
                       bg={inputBg}
                       border="none"
-                      placeholder="Where are you going?"
+                      placeholder="City (e.g., Albany)"
                       size="lg"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
@@ -156,13 +162,13 @@ function TripPlanner() {
 
                 <FormControl isRequired>
                   <Text fontSize="sm" fontWeight="medium" mb={2} color="gray.500">
-                    STATE / PROVINCE
+                    STATE ABBREVIATION
                   </Text>
                   <InputGroup size="lg">
                     <Input
                       bg={inputBg}
                       border="none"
-                      placeholder="Enter state or province"
+                      placeholder= "State (e.g., NY)"
                       size="lg"
                       value={state}
                       onChange={(e) => setState(e.target.value)}

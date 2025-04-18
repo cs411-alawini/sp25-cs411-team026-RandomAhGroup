@@ -4,6 +4,63 @@ const router = express.Router();
 // Import middleware
 const authenticateToken = require('../middleware/auth');
 
+// Check if city and state are valid throught the database
+router.get('/validate', authenticateToken, async (req, res) => {
+  try {
+    const { city, state } = req.query;
+
+    if (!city || !state) {
+      return res.status(400).json({ message: 'City and state are required' });
+    }
+
+    const connection = await req.app.locals.pool.getConnection();
+    const [results] = await connection.query(
+      'SELECT 1 FROM Attraction WHERE LOWER(city) = LOWER(?) AND LOWER(state) = LOWER(?) LIMIT 1',
+      [city, state]
+    );
+    connection.release();
+
+    const isValid = results.length > 0;
+    return res.status(200).json({ valid: isValid });
+
+  } catch (error) {
+    console.error('Validate city/state error:', error);
+    return res.status(500).json({ message: 'Failed to validate city/state' });
+  }
+});
+
+
+// Search for attractions based on city and state
+router.get('/search', authenticateToken, async (req, res) => {
+  try {
+    const { city, state, orderBy } = req.query;
+
+    if (!city || !state) {
+      return res.status(400).json({ message: 'City and state are required' });
+    }
+
+    const validOrderBy = ['popularity', 'rating'];
+    const orderColumn = validOrderBy.includes(orderBy) ? orderBy : 'popularity';
+    const secondaryOrderColumn = orderBy === 'popularity' ? 'rating' : 'popularity';
+
+    const connection = await req.app.locals.pool.getConnection();
+    const [results] = await connection.query(
+      `SELECT * FROM Attraction WHERE LOWER(city) = LOWER(?) AND LOWER(state) = LOWER(?) ORDER BY ${orderColumn} DESC , ${secondaryOrderColumn} DESC`,
+      [city, state]
+    );
+    connection.release();
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'No attractions found for the specified city and state.' });
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Search attractions error:', error);
+    res.status(500).json({ message: 'Failed to search attractions' });
+  }
+});
+
 // Create a new itinerary
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -376,46 +433,47 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
 router.post('/:id/items', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { attraction_id, day_number, start_time, end_time, notes } = req.body;
+    const { attraction_id, day_number = null, start_time = null, end_time = null, notes = null } = req.body;
     const userId = req.user.id;
+
     
     // Validate input
-    if (!attraction_id || !day_number) {
-      return res.status(400).json({ message: 'Attraction ID and day number are required' });
+    if (!attraction_id || !id) {
+      return res.status(400).json({ message: 'Attraction ID and Itinerary ID are required' });
     }
-    
+
     const connection = await req.app.locals.pool.getConnection();
-    
+
     // Verify itinerary belongs to user
     const [itineraries] = await connection.query(
       'SELECT * FROM Itinerary WHERE itinerary_id = ? AND user_id = ?',
       [id, userId]
     );
-    
+
     if (itineraries.length === 0) {
       connection.release();
       return res.status(404).json({ message: 'Itinerary not found or unauthorized' });
     }
-    
+
     // Verify attraction exists
     const [attractions] = await connection.query(
       'SELECT * FROM Attraction WHERE attraction_id = ?',
       [attraction_id]
     );
-    
+
     if (attractions.length === 0) {
       connection.release();
       return res.status(404).json({ message: 'Attraction not found' });
     }
-    
+
     // Insert itinerary item
     const [result] = await connection.query(
       'INSERT INTO ItineraryItem (itinerary_id, attraction_id, day_number, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?)',
       [id, attraction_id, day_number, start_time, end_time, notes]
     );
-    
+
     connection.release();
-    
+
     res.status(201).json({
       id: result.insertId,
       message: 'Itinerary item added successfully'
@@ -425,6 +483,7 @@ router.post('/:id/items', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Failed to add itinerary item' });
   }
 });
+
 
 // Update an itinerary item
 router.put('/:id/items/:itemId', authenticateToken, async (req, res) => {
@@ -465,43 +524,96 @@ router.put('/:id/items/:itemId', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete an itinerary item
-router.delete('/:id/items/:itemId', authenticateToken, async (req, res) => {
+// Delete an itinerary item using item_id in the body
+router.delete('/:id/items', authenticateToken, async (req, res) => {
   try {
-    const { id, itemId } = req.params;
+    const { id } = req.params;
+    const { item_id } = req.body;
     const userId = req.user.id;
-    
+
+    if (!item_id) {
+      return res.status(400).json({ message: 'Item ID is required' });
+    }
+
     const connection = await req.app.locals.pool.getConnection();
-    
+
     // Verify itinerary belongs to user
     const [itineraries] = await connection.query(
       'SELECT * FROM Itinerary WHERE itinerary_id = ? AND user_id = ?',
       [id, userId]
     );
-    
+
     if (itineraries.length === 0) {
       connection.release();
       return res.status(404).json({ message: 'Itinerary not found or unauthorized' });
     }
-    
-    // Delete itinerary item
+
+    // Delete the item
     const [result] = await connection.query(
       'DELETE FROM ItineraryItem WHERE item_id = ? AND itinerary_id = ?',
-      [itemId, id]
+      [item_id, id]
     );
-    
+
     connection.release();
-    
+
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Itinerary item not found' });
+      return res.status(404).json({ message: 'Item not found or already deleted' });
     }
-    
+
     res.json({ message: 'Itinerary item deleted successfully' });
   } catch (error) {
     console.error('Delete item error:', error);
     res.status(500).json({ message: 'Failed to delete itinerary item' });
   }
 });
+
+
+
+// Get all attractions for a specific itinerary
+router.get('/:id/attractions', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const connection = await req.app.locals.pool.getConnection();
+
+    console.log('Fetching attractions for itinerary ID:', id);
+    console.log('User ID:', userId);
+    
+
+    // Verify itinerary belongs to user
+    const [itineraries] = await connection.query(
+      'SELECT * FROM Itinerary WHERE itinerary_id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    if (itineraries.length === 0) {
+      connection.release();
+      return res.status(404).json({ message: 'Itinerary not found or unauthorized' });
+    }
+
+    // Get all attractions for the itinerary
+    const [attractions] = await connection.query(
+      `SELECT 
+      a.name,
+         ii.item_id,
+         a.description,
+         a.rating,
+         a.popularity,
+         a.address
+       FROM ItineraryItem ii
+       JOIN Attraction a ON ii.attraction_id = a.attraction_id
+       WHERE ii.itinerary_id = ?
+       ORDER BY ii.day_number, ii.start_time`,
+      [id]
+    );
+    connection.release();
+    res.json(attractions);
+  } catch (error) {
+    console.error('Get itinerary attractions error:', error);
+    res.status(500).json({ message: 'Failed to retrieve itinerary attractions' });
+  }
+});
+
 
 // Reorder itinerary items
 router.put('/:id/reorder', authenticateToken, async (req, res) => {
