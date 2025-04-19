@@ -69,6 +69,10 @@ export const userService = {
   updatePreferences: async (preferences) => {
     return api.put('/users/preferences', preferences);
   },
+
+  getRecommendations: async (itineraryId) => {
+    return api.get(`/itineraries/${itineraryId}/recommendations`);
+  },
   
   // Change user password
   changePassword: async (currentPassword, newPassword) => {

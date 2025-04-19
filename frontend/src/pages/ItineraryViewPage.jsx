@@ -12,6 +12,7 @@ import {
   useToast,
   Select,
   Divider,
+  Badge,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { itineraryService } from "../services/api";
@@ -48,8 +49,15 @@ function ItineraryViewPage() {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const { data } = await itineraryService.searchAttractions(city, stateCode, orderBy);
-      setAttractions(data);
+      if (orderBy === "recommended") {
+        // Use recommendation endpoint
+        const { data } = await itineraryService.getRecommendations(itinerary.id);
+        setAttractions(data);
+      } else {
+        // Use regular search
+        const { data } = await itineraryService.searchAttractions(city, stateCode, orderBy);
+        setAttractions(data);
+      }
     } catch (err) {
       toast({
         title: "Search failed",
@@ -128,6 +136,7 @@ function ItineraryViewPage() {
         <Select value={orderBy} onChange={(e) => setOrderBy(e.target.value)}>
           <option value="popularity">Sort by Popularity</option>
           <option value="rating">Sort by Rating</option>
+          <option value="recommended">Recommended For You</option>
         </Select>
 
         <Button onClick={handleSearch} colorScheme="blue" isLoading={loading}>
@@ -165,17 +174,31 @@ function ItineraryViewPage() {
         <Text color="gray.500">You haven’t added anything yet.</Text>
       )}
 
-      <Heading size="md" mb={4}>Attraction Search Results</Heading>
+      <Heading size="md" mb={4}>
+        {orderBy === "recommended" ? "Recommended Attractions" : "Attraction Search Results"}
+      </Heading>
       {attractions.length > 0 ? (
         <SimpleGrid columns={[1, 2, 3]} spacing={4}>
           {attractions.map((attr) => (
-            <Card key={attr.attraction_id}>
+            <Card 
+              key={attr.attraction_id}
+              borderColor={orderBy === "recommended" && attr.preference_score > 3 ? "green.400" : undefined}
+              borderWidth={orderBy === "recommended" && attr.preference_score > 3 ? "2px" : undefined}
+            >
               <CardBody>
                 <Heading size="sm">{attr.name}</Heading>
                 <Text fontSize="sm" mt={2}>{attr.description || "No description available."}</Text>
                 <Text fontSize="sm"><strong>Rating:</strong> {attr.rating ?? "N/A"}</Text>
                 <Text fontSize="sm"><strong>Popularity:</strong> {attr.popularity ?? "N/A"}</Text>
                 <Text fontSize="sm"><strong>Address:</strong> {attr.address || "Not available"}</Text>
+                
+                {/* Show preference match if this is a recommendation */}
+                {orderBy === "recommended" && attr.preference_score > 3 && (
+                  <Badge colorScheme="green" mt={1}>
+                    Matches your preferences
+                  </Badge>
+                )}
+                
                 <Button
                   mt={4}
                   size="sm"
