@@ -677,109 +677,27 @@ router.get('/:id/recommendations', authenticateToken, async (req, res) => {
     
     const connection = await req.app.locals.pool.getConnection();
     
-    // Verify itinerary belongs to user
-    const [itineraries] = await connection.query(
-      'SELECT * FROM Itinerary WHERE itinerary_id = ? AND user_id = ?',
-      [id, userId]
-    );
-    
-    if (itineraries.length === 0) {
-      connection.release();
-      return res.status(404).json({ message: 'Itinerary not found or unauthorized' });
-    }
-    
-    const itinerary = itineraries[0];
-    
-    // Get user preferences
-    const [users] = await connection.query(
-      `SELECT 
-        park_pref, historical_landmark_pref, historical_place_museum_pref, 
-        museum_pref, history_museum_pref, tourist_attraction_pref,
-        wildlife_park_pref, art_museum_pref, aquarium_pref,
-        monument_pref, hiking_area_pref, zoo_pref,
-        catholic_cathedral_pref, nature_preserve_pref, amusement_park_pref,
-        garden_pref, theme_park_pref, water_park_pref,
-        scenic_spot_pref, observatory_pref, castle_pref,
-        archaeological_museum_pref, public_beach_pref, national_forest_pref,
-        catholic_church_pref, heritage_museum_pref, beach_pref,
-        synagogue_pref, ecological_park_pref, wax_museum_pref,
-        hindu_temple_pref, wildlife_safari_park_pref, buddhist_temple_pref,
-        animal_park_pref, wildlife_refuge_pref, heritage_building_pref,
-        vista_point_pref, national_park_pref, monastery_pref,
-        fortress_pref, beach_pavilion_pref
-      FROM User 
-      WHERE user_id = ?`,
-      [userId]
-    );
-    
-    if (users.length === 0) {
-      connection.release();
-      return res.status(404).json({ message: 'User preferences not found' });
-    }
-    
-    const preferences = users[0];
-    
-    // Get attractions in the destination city/state, sorted by preference match
-    const [attractions] = await connection.query(
-      `SELECT a.*, 
-        CASE a.main_category 
-          WHEN 'Park' THEN ${preferences.park_pref}
-          WHEN 'Historical Landmark' THEN ${preferences.historical_landmark_pref}
-          WHEN 'Historical Place/Museum' THEN ${preferences.historical_place_museum_pref}
-          WHEN 'Museum' THEN ${preferences.museum_pref}
-          WHEN 'History Museum' THEN ${preferences.history_museum_pref}
-          WHEN 'Tourist Attraction' THEN ${preferences.tourist_attraction_pref}
-          WHEN 'Wildlife Park' THEN ${preferences.wildlife_park_pref}
-          WHEN 'Art Museum' THEN ${preferences.art_museum_pref}
-          WHEN 'Aquarium' THEN ${preferences.aquarium_pref}
-          WHEN 'Monument' THEN ${preferences.monument_pref}
-          WHEN 'Hiking Area' THEN ${preferences.hiking_area_pref}
-          WHEN 'Zoo' THEN ${preferences.zoo_pref}
-          WHEN 'Catholic Cathedral' THEN ${preferences.catholic_cathedral_pref}
-          WHEN 'Nature Preserve' THEN ${preferences.nature_preserve_pref}
-          WHEN 'Amusement Park' THEN ${preferences.amusement_park_pref}
-          WHEN 'Garden' THEN ${preferences.garden_pref}
-          WHEN 'Theme Park' THEN ${preferences.theme_park_pref}
-          WHEN 'Water Park' THEN ${preferences.water_park_pref}
-          WHEN 'Scenic Spot' THEN ${preferences.scenic_spot_pref}
-          WHEN 'Observatory' THEN ${preferences.observatory_pref}
-          WHEN 'Castle' THEN ${preferences.castle_pref}
-          WHEN 'Archaeological Museum' THEN ${preferences.archaeological_museum_pref}
-          WHEN 'Public Beach' THEN ${preferences.public_beach_pref}
-          WHEN 'National Forest' THEN ${preferences.national_forest_pref}
-          WHEN 'Catholic Church' THEN ${preferences.catholic_church_pref}
-          WHEN 'Heritage Museum' THEN ${preferences.heritage_museum_pref}
-          WHEN 'Beach' THEN ${preferences.beach_pref}
-          WHEN 'Synagogue' THEN ${preferences.synagogue_pref}
-          WHEN 'Ecological Park' THEN ${preferences.ecological_park_pref}
-          WHEN 'Wax Museum' THEN ${preferences.wax_museum_pref}
-          WHEN 'Hindu Temple' THEN ${preferences.hindu_temple_pref}
-          WHEN 'Wildlife Safari Park' THEN ${preferences.wildlife_safari_park_pref}
-          WHEN 'Buddhist Temple' THEN ${preferences.buddhist_temple_pref}
-          WHEN 'Animal Park' THEN ${preferences.animal_park_pref}
-          WHEN 'Wildlife Refuge' THEN ${preferences.wildlife_refuge_pref}
-          WHEN 'Heritage Building' THEN ${preferences.heritage_building_pref}
-          WHEN 'Vista Point' THEN ${preferences.vista_point_pref}
-          WHEN 'National Park' THEN ${preferences.national_park_pref}
-          WHEN 'Monastery' THEN ${preferences.monastery_pref}
-          WHEN 'Fortress' THEN ${preferences.fortress_pref}
-          WHEN 'Beach Pavilion' THEN ${preferences.beach_pavilion_pref}
-          ELSE 3
-        END AS preference_score
-      FROM Attraction a
-      WHERE a.city = ? AND a.state = ?
-      ORDER BY preference_score DESC, a.rating DESC
-      LIMIT 30`,
-      [itinerary.destination_city, itinerary.destination_state]
+    // Call the stored procedure directly
+    const [results] = await connection.query(
+      'CALL GetRecommendationsForItinerary(?, ?, ?)',
+      [id, userId, 30] // 30 is the limit
     );
     
     connection.release();
     
-    res.json(attractions);
+    // MySQL stored procedure results come as an array containing result sets
+    // The first element (results[0]) is our attractions
+    if (results[0].length === 0) {
+      return res.status(404).json({ 
+        message: 'No recommendations found or itinerary not found/unauthorized' 
+      });
+    }
+    
+    res.json(results[0]);
   } catch (error) {
     console.error('Get recommendations error:', error);
     res.status(500).json({ message: 'Failed to get recommendations' });
   }
 });
 
-module.exports = router; 
+module.exports = router;

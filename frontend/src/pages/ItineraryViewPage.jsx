@@ -13,6 +13,7 @@ import {
   Select,
   Divider,
   Badge,
+  Flex,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { itineraryService } from "../services/api";
@@ -186,17 +187,42 @@ function ItineraryViewPage() {
               borderWidth={orderBy === "recommended" && attr.preference_score > 3 ? "2px" : undefined}
             >
               <CardBody>
-                <Heading size="sm">{attr.name}</Heading>
+                <Flex justify="space-between" align="start">
+                  <Heading size="sm">{attr.name}</Heading>
+                  
+                  {/* Add preference score display */}
+                  {orderBy === "recommended" && (
+                    <Badge 
+                      colorScheme={attr.preference_score > 4 ? "green" : attr.preference_score > 3 ? "blue" : "gray"}
+                      fontSize="0.8em"
+                      borderRadius="full"
+                      px={2}
+                      variant="solid"
+                    >
+                      {attr.preference_score === 5 ? "Perfect Match" : 
+                       attr.preference_score > 4 ? "Strong Match" :
+                       attr.preference_score > 3 ? "Good Match" :
+                       attr.preference_score > 2 ? "Fair Match" : "Basic Match"}
+                      {" "}{attr.preference_score}/5
+                    </Badge>
+                  )}
+                </Flex>
+
                 <Text fontSize="sm" mt={2}>{attr.description || "No description available."}</Text>
                 <Text fontSize="sm"><strong>Rating:</strong> {attr.rating ?? "N/A"}</Text>
                 <Text fontSize="sm"><strong>Popularity:</strong> {attr.popularity ?? "N/A"}</Text>
                 <Text fontSize="sm"><strong>Address:</strong> {attr.address || "Not available"}</Text>
                 
-                {/* Show preference match if this is a recommendation */}
+                {/* Show preference match details instead of just a badge */}
                 {orderBy === "recommended" && attr.preference_score > 3 && (
-                  <Badge colorScheme="green" mt={1}>
-                    Matches your preferences
-                  </Badge>
+                  <Box mt={2}>
+                    <Text fontSize="xs" fontWeight="medium" color="green.600">
+                      This matches your preferences for:
+                    </Text>
+                    <Text fontSize="xs" color="green.600">
+                      {attr.main_category || "Attractions"} 
+                    </Text>
+                  </Box>
                 )}
                 
                 <Button
