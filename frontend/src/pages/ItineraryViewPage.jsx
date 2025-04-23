@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Input,
@@ -14,9 +14,22 @@ import {
   Divider,
   Badge,
   Flex,
+  HStack,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  FormHelperText,
 } from "@chakra-ui/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { itineraryService } from "../services/api";
+import { FiShare2 } from "react-icons/fi";
 
 function ItineraryViewPage() {
   const { state } = useLocation();
@@ -25,21 +38,31 @@ function ItineraryViewPage() {
   const itinerary = state?.itinerary;
 
   const [city, setCity] = useState(itinerary?.destination_city || "");
-  const [stateCode, setStateCode] = useState(itinerary?.destination_state || "");
+  const [stateCode, setStateCode] = useState(
+    itinerary?.destination_state || ""
+  );
   const [orderBy, setOrderBy] = useState("popularity");
   const [attractions, setAttractions] = useState([]);
   const [itineraryItems, setItineraryItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const {
+    isOpen: isShareOpen,
+    onOpen: onShareOpen,
+    onClose: onShareClose,
+  } = useDisclosure();
 
   const fetchItineraryItems = async () => {
     try {
       const { data } = await itineraryService.getItineraryItems(itinerary.id);
       setItineraryItems(data);
     } catch (err) {
-        console.error(err);
+      console.error(err);
       toast({
         title: "Failed to load itinerary items",
-        description: err.response?.data?.message || "Could not fetch itinerary items",
+        description:
+          err.response?.data?.message || "Could not fetch itinerary items",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -62,7 +85,8 @@ function ItineraryViewPage() {
     } catch (err) {
       toast({
         title: "Search failed",
-        description: err.response?.data?.message || "Could not fetch attractions",
+        description:
+          err.response?.data?.message || "Could not fetch attractions",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -119,7 +143,64 @@ function ItineraryViewPage() {
       });
     }
   };
-  
+
+  const handleShareClick = () => {
+    setShareEmail("");
+    onShareOpen();
+  };
+
+  const handleShareItinerary = async () => {
+    if (!itinerary || !shareEmail) return;
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(shareEmail)) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsSharing(true);
+
+    try {
+      const itineraryId = itinerary.id || itinerary.itinerary_id;
+      console.log("Sharing itinerary ID:", itineraryId);
+
+      const response = await itineraryService.shareItinerary(
+        itineraryId,
+        shareEmail
+      );
+
+      toast({
+        title: "Itinerary shared successfully",
+        description: `Your trip to ${city}, ${stateCode} has been shared with ${shareEmail}.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      onShareClose();
+    } catch (err) {
+      console.error("Error sharing itinerary:", err);
+
+      toast({
+        title: "Error sharing itinerary",
+        description:
+          err.response?.data?.message ||
+          "Failed to share itinerary. Please try again.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   useEffect(() => {
     if (!itinerary) {
@@ -131,7 +212,18 @@ function ItineraryViewPage() {
 
   return (
     <Box p={6}>
-      <Heading mb={4}>Plan Trip to {city}, {stateCode}</Heading>
+      <HStack mb={4} justify="space-between">
+        <Heading>
+          Plan Trip to {city}, {stateCode}
+        </Heading>
+        <Button
+          leftIcon={<FiShare2 />}
+          colorScheme="green"
+          onClick={handleShareClick}
+        >
+          Share
+        </Button>
+      </HStack>
 
       <VStack spacing={4} align="stretch" mb={6}>
         <Select value={orderBy} onChange={(e) => setOrderBy(e.target.value)}>
@@ -147,18 +239,28 @@ function ItineraryViewPage() {
 
       <Divider mb={6} />
 
-      <Heading size="md" mb={4}>Your Itinerary</Heading>
+      <Heading size="md" mb={4}>
+        Your Itinerary
+      </Heading>
       {itineraryItems.length > 0 ? (
         <SimpleGrid columns={[1, 2, 3]} spacing={4} mb={8}>
           {itineraryItems.map((item) => (
             <Card key={item.item_id}>
               <CardBody>
-              <Heading size="sm">{item.name}</Heading>
-                <Text fontSize="sm" mt={2}>{item.description || "No description available."}</Text>
-                <Text fontSize="sm"><strong>Rating:</strong> {item.rating ?? "N/A"}</Text>
-                <Text fontSize="sm"><strong>Popularity:</strong> {item.popularity ?? "N/A"}</Text>
-                <Text fontSize="sm"><strong>Address:</strong> {item.address || "Not available"}</Text>
-                
+                <Heading size="sm">{item.name}</Heading>
+                <Text fontSize="sm" mt={2}>
+                  {item.description || "No description available."}
+                </Text>
+                <Text fontSize="sm">
+                  <strong>Rating:</strong> {item.rating ?? "N/A"}
+                </Text>
+                <Text fontSize="sm">
+                  <strong>Popularity:</strong> {item.popularity ?? "N/A"}
+                </Text>
+                <Text fontSize="sm">
+                  <strong>Address:</strong> {item.address || "Not available"}
+                </Text>
+
                 <Button
                   mt={4}
                   size="sm"
@@ -172,7 +274,7 @@ function ItineraryViewPage() {
           ))}
         </SimpleGrid>
       ) : (
-        <Text color="gray.500">You haven’t added anything yet.</Text>
+        <Text color="gray.500">You haven't added anything yet.</Text>
       )}
 
       <Heading size="md" mb={4}>
@@ -242,6 +344,48 @@ function ItineraryViewPage() {
           Click Search to find attractions in {city}, {stateCode}.
         </Text>
       )}
+
+      {/* Share Itinerary Modal */}
+      <Modal isOpen={isShareOpen} onClose={onShareClose} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Share Itinerary</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Text mb={4}>
+              Share your trip to {city}, {stateCode} with another user
+            </Text>
+
+            <FormControl isRequired mb={4}>
+              <FormLabel>Email Address</FormLabel>
+              <Input
+                type="email"
+                placeholder="Enter recipient's email"
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+              />
+              <FormHelperText>
+                The recipient must have an account in the system
+              </FormHelperText>
+            </FormControl>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="gray" mr={3} onClick={onShareClose}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="green"
+              onClick={handleShareItinerary}
+              isLoading={isSharing}
+              loadingText="Sharing..."
+              isDisabled={!shareEmail}
+            >
+              Share Itinerary
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
