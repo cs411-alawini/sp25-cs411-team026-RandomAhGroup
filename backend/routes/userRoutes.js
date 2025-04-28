@@ -164,7 +164,7 @@ router.put('/preferences', authenticateToken, async (req, res) => {
       if (pref.endsWith('_pref') && 
           typeof preferences[pref] === 'number' && 
           preferences[pref] >= 1 && 
-          preferences[pref] <= 5) {
+          preferences[pref] <= 100) {
         validPrefs.push(`${pref} = ?`);
         values.push(preferences[pref]);
       }

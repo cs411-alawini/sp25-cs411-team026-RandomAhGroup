@@ -358,4 +358,137 @@ BEGIN
     -- Commit the transaction
     COMMIT;
 END //
-DELIMITER ; 
+DELIMITER ;
+
+-- Create a stored procedure for getting attraction recommendations based on user preferences
+DELIMITER //
+CREATE PROCEDURE GetRecommendationsForItinerary(
+    IN p_itinerary_id INT,
+    IN p_user_id INT,
+    IN p_limit INT
+)
+BEGIN
+    DECLARE v_city VARCHAR(100);
+    DECLARE v_state VARCHAR(100);
+    
+    -- Get the itinerary city and state
+    SELECT destination_city, destination_state 
+    INTO v_city, v_state
+    FROM Itinerary
+    WHERE itinerary_id = p_itinerary_id AND user_id = p_user_id;
+    
+    -- If no itinerary found or not owned by user, return empty result
+    IF v_city IS NULL THEN
+        SELECT NULL;
+        LEAVE GetRecommendationsForItinerary;
+    END IF;
+    
+    -- Get attractions in the destination city/state with preference scores
+    SELECT 
+        a.*,
+        -- Calculate a preference score based on user preferences and attraction category
+        CASE 
+            WHEN a.main_category = 'Park' THEN u.park_pref
+            WHEN a.main_category = 'Historical Landmark' THEN u.historical_landmark_pref
+            WHEN a.main_category = 'Historical Place Museum' THEN u.historical_place_museum_pref
+            WHEN a.main_category = 'Museum' THEN u.museum_pref
+            WHEN a.main_category = 'History Museum' THEN u.history_museum_pref
+            WHEN a.main_category = 'Tourist Attraction' THEN u.tourist_attraction_pref
+            WHEN a.main_category = 'Wildlife Park' THEN u.wildlife_park_pref
+            WHEN a.main_category = 'Art Museum' THEN u.art_museum_pref
+            WHEN a.main_category = 'Aquarium' THEN u.aquarium_pref
+            WHEN a.main_category = 'Monument' THEN u.monument_pref
+            WHEN a.main_category = 'Hiking Area' THEN u.hiking_area_pref
+            WHEN a.main_category = 'Zoo' THEN u.zoo_pref
+            WHEN a.main_category = 'Catholic Cathedral' THEN u.catholic_cathedral_pref
+            WHEN a.main_category = 'Nature Preserve' THEN u.nature_preserve_pref
+            WHEN a.main_category = 'Amusement Park' THEN u.amusement_park_pref
+            WHEN a.main_category = 'Garden' THEN u.garden_pref
+            WHEN a.main_category = 'Theme Park' THEN u.theme_park_pref
+            WHEN a.main_category = 'Water Park' THEN u.water_park_pref
+            WHEN a.main_category = 'Scenic Spot' THEN u.scenic_spot_pref
+            WHEN a.main_category = 'Observatory' THEN u.observatory_pref
+            WHEN a.main_category = 'Castle' THEN u.castle_pref
+            WHEN a.main_category = 'Archaeological Museum' THEN u.archaeological_museum_pref
+            WHEN a.main_category = 'Public Beach' THEN u.public_beach_pref
+            WHEN a.main_category = 'National Forest' THEN u.national_forest_pref
+            WHEN a.main_category = 'Catholic Church' THEN u.catholic_church_pref
+            WHEN a.main_category = 'Heritage Museum' THEN u.heritage_museum_pref
+            WHEN a.main_category = 'Beach' THEN u.beach_pref
+            WHEN a.main_category = 'Synagogue' THEN u.synagogue_pref
+            WHEN a.main_category = 'Ecological Park' THEN u.ecological_park_pref
+            WHEN a.main_category = 'Wax Museum' THEN u.wax_museum_pref
+            WHEN a.main_category = 'Hindu Temple' THEN u.hindu_temple_pref
+            WHEN a.main_category = 'Wildlife Safari Park' THEN u.wildlife_safari_park_pref
+            WHEN a.main_category = 'Buddhist Temple' THEN u.buddhist_temple_pref
+            WHEN a.main_category = 'Animal Park' THEN u.animal_park_pref
+            WHEN a.main_category = 'Wildlife Refuge' THEN u.wildlife_refuge_pref
+            WHEN a.main_category = 'Heritage Building' THEN u.heritage_building_pref
+            WHEN a.main_category = 'Vista Point' THEN u.vista_point_pref
+            WHEN a.main_category = 'National Park' THEN u.national_park_pref
+            WHEN a.main_category = 'Monastery' THEN u.monastery_pref
+            WHEN a.main_category = 'Fortress' THEN u.fortress_pref
+            WHEN a.main_category = 'Beach Pavilion' THEN u.beach_pavilion_pref
+            ELSE 3 -- Default preference if no match
+        END AS preference_score
+    FROM 
+        Attraction a
+        JOIN User u ON u.user_id = p_user_id
+        LEFT JOIN (
+            SELECT attraction_id 
+            FROM ItineraryItem 
+            WHERE itinerary_id = p_itinerary_id
+        ) AS added ON a.attraction_id = added.attraction_id
+    WHERE 
+        a.city = v_city 
+        AND a.state = v_state
+        AND added.attraction_id IS NULL -- Exclude attractions already in itinerary
+    ORDER BY 
+        preference_score DESC, -- Sort by preference first
+        a.rating DESC          -- Then by rating
+    LIMIT p_limit;
+END //
+DELIMITER ;
+
+-- Create a trigger that updates user preferences when they add an attraction to their itinerary
+DELIMITER //
+CREATE TRIGGER after_itinerary_item_insert
+AFTER INSERT ON ItineraryItem
+FOR EACH ROW
+BEGIN
+    DECLARE v_category VARCHAR(100);
+    DECLARE v_user_id INT;
+    DECLARE v_preference_column VARCHAR(50);
+    
+    -- Get the category of the attraction
+    SELECT a.main_category, i.user_id INTO v_category, v_user_id
+    FROM Attraction a
+    JOIN Itinerary i ON i.itinerary_id = NEW.itinerary_id
+    WHERE a.attraction_id = NEW.attraction_id;
+    
+    -- Only proceed if we found a valid category and user
+    IF v_category IS NOT NULL AND v_user_id IS NOT NULL THEN
+        -- Create the preference column name by converting the category to lowercase and adding _pref
+        SET v_preference_column = LOWER(REPLACE(REPLACE(v_category, ' ', '_'), '-', '_')) || '_pref';
+        
+        -- Check if this preference column exists in User table
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_schema = DATABASE() 
+            AND table_name = 'User'
+            AND column_name = v_preference_column
+        ) THEN
+            -- Simple increment with a higher maximum (100)
+            -- This creates more room for differentiation without complex logic
+            SET @update_sql = CONCAT('UPDATE User SET ', v_preference_column, ' = LEAST(', 
+                                   'IFNULL(', v_preference_column, ', 0) + 1, 100) ',
+                                   'WHERE user_id = ?');
+            
+            PREPARE stmt FROM @update_sql;
+            SET @user_id = v_user_id;
+            EXECUTE stmt USING @user_id;
+            DEALLOCATE PREPARE stmt;
+        END IF;
+    END IF;
+END //
+DELIMITER ;
