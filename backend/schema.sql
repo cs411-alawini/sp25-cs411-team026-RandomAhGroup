@@ -458,9 +458,8 @@ FOR EACH ROW
 BEGIN
     DECLARE v_category VARCHAR(100);
     DECLARE v_user_id INT;
-    DECLARE v_preference_column VARCHAR(50);
     
-    -- Get the category of the attraction
+    -- Get the category of the attraction and user_id
     SELECT a.main_category, i.user_id INTO v_category, v_user_id
     FROM Attraction a
     JOIN Itinerary i ON i.itinerary_id = NEW.itinerary_id
@@ -468,27 +467,137 @@ BEGIN
     
     -- Only proceed if we found a valid category and user
     IF v_category IS NOT NULL AND v_user_id IS NOT NULL THEN
-        -- Create the preference column name by converting the category to lowercase and adding _pref
-        SET v_preference_column = LOWER(REPLACE(REPLACE(v_category, ' ', '_'), '-', '_')) || '_pref';
-        
-        -- Check if this preference column exists in User table
-        IF EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_schema = DATABASE() 
-            AND table_name = 'User'
-            AND column_name = v_preference_column
-        ) THEN
-            -- Simple increment with a higher maximum (100)
-            -- This creates more room for differentiation without complex logic
-            SET @update_sql = CONCAT('UPDATE User SET ', v_preference_column, ' = LEAST(', 
-                                   'IFNULL(', v_preference_column, ', 0) + 1, 100) ',
-                                   'WHERE user_id = ?');
-            
-            PREPARE stmt FROM @update_sql;
-            SET @user_id = v_user_id;
-            EXECUTE stmt USING @user_id;
-            DEALLOCATE PREPARE stmt;
-        END IF;
+        -- Update the appropriate preference based on category
+        -- We have to use a CASE statement instead of dynamic SQL
+        CASE LOWER(REPLACE(REPLACE(v_category, ' ', '_'), '-', '_'))
+            WHEN 'park' THEN 
+                UPDATE User SET park_pref = LEAST(IFNULL(park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'historical_landmark' THEN 
+                UPDATE User SET historical_landmark_pref = LEAST(IFNULL(historical_landmark_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'historical_place_museum' THEN 
+                UPDATE User SET historical_place_museum_pref = LEAST(IFNULL(historical_place_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'museum' THEN 
+                UPDATE User SET museum_pref = LEAST(IFNULL(museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'history_museum' THEN 
+                UPDATE User SET history_museum_pref = LEAST(IFNULL(history_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'tourist_attraction' THEN 
+                UPDATE User SET tourist_attraction_pref = LEAST(IFNULL(tourist_attraction_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'wildlife_park' THEN 
+                UPDATE User SET wildlife_park_pref = LEAST(IFNULL(wildlife_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'art_museum' THEN 
+                UPDATE User SET art_museum_pref = LEAST(IFNULL(art_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'aquarium' THEN 
+                UPDATE User SET aquarium_pref = LEAST(IFNULL(aquarium_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'monument' THEN 
+                UPDATE User SET monument_pref = LEAST(IFNULL(monument_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'hiking_area' THEN 
+                UPDATE User SET hiking_area_pref = LEAST(IFNULL(hiking_area_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'zoo' THEN 
+                UPDATE User SET zoo_pref = LEAST(IFNULL(zoo_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'catholic_cathedral' THEN 
+                UPDATE User SET catholic_cathedral_pref = LEAST(IFNULL(catholic_cathedral_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'nature_preserve' THEN 
+                UPDATE User SET nature_preserve_pref = LEAST(IFNULL(nature_preserve_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'amusement_park' THEN 
+                UPDATE User SET amusement_park_pref = LEAST(IFNULL(amusement_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'garden' THEN 
+                UPDATE User SET garden_pref = LEAST(IFNULL(garden_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'theme_park' THEN 
+                UPDATE User SET theme_park_pref = LEAST(IFNULL(theme_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'water_park' THEN 
+                UPDATE User SET water_park_pref = LEAST(IFNULL(water_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'scenic_spot' THEN 
+                UPDATE User SET scenic_spot_pref = LEAST(IFNULL(scenic_spot_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'observatory' THEN 
+                UPDATE User SET observatory_pref = LEAST(IFNULL(observatory_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'castle' THEN 
+                UPDATE User SET castle_pref = LEAST(IFNULL(castle_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'archaeological_museum' THEN 
+                UPDATE User SET archaeological_museum_pref = LEAST(IFNULL(archaeological_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'public_beach' THEN 
+                UPDATE User SET public_beach_pref = LEAST(IFNULL(public_beach_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'national_forest' THEN 
+                UPDATE User SET national_forest_pref = LEAST(IFNULL(national_forest_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'catholic_church' THEN 
+                UPDATE User SET catholic_church_pref = LEAST(IFNULL(catholic_church_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'heritage_museum' THEN 
+                UPDATE User SET heritage_museum_pref = LEAST(IFNULL(heritage_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'beach' THEN 
+                UPDATE User SET beach_pref = LEAST(IFNULL(beach_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'synagogue' THEN 
+                UPDATE User SET synagogue_pref = LEAST(IFNULL(synagogue_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'ecological_park' THEN 
+                UPDATE User SET ecological_park_pref = LEAST(IFNULL(ecological_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'wax_museum' THEN 
+                UPDATE User SET wax_museum_pref = LEAST(IFNULL(wax_museum_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'hindu_temple' THEN 
+                UPDATE User SET hindu_temple_pref = LEAST(IFNULL(hindu_temple_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'wildlife_safari_park' THEN 
+                UPDATE User SET wildlife_safari_park_pref = LEAST(IFNULL(wildlife_safari_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'buddhist_temple' THEN 
+                UPDATE User SET buddhist_temple_pref = LEAST(IFNULL(buddhist_temple_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'animal_park' THEN 
+                UPDATE User SET animal_park_pref = LEAST(IFNULL(animal_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'wildlife_refuge' THEN 
+                UPDATE User SET wildlife_refuge_pref = LEAST(IFNULL(wildlife_refuge_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'heritage_building' THEN 
+                UPDATE User SET heritage_building_pref = LEAST(IFNULL(heritage_building_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'vista_point' THEN 
+                UPDATE User SET vista_point_pref = LEAST(IFNULL(vista_point_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'national_park' THEN 
+                UPDATE User SET national_park_pref = LEAST(IFNULL(national_park_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'monastery' THEN 
+                UPDATE User SET monastery_pref = LEAST(IFNULL(monastery_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'fortress' THEN 
+                UPDATE User SET fortress_pref = LEAST(IFNULL(fortress_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            WHEN 'beach_pavilion' THEN 
+                UPDATE User SET beach_pavilion_pref = LEAST(IFNULL(beach_pavilion_pref, 0) + 1, 100) 
+                WHERE user_id = v_user_id;
+            ELSE 
+                -- No matching preference found, do nothing
+                BEGIN
+                END;
+        END CASE;
     END IF;
 END //
 DELIMITER ;

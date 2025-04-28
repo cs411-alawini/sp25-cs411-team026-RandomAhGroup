@@ -295,17 +295,17 @@ function ItineraryViewPage() {
                   {/* Add preference score display */}
                   {orderBy === "recommended" && (
                     <Badge 
-                      colorScheme={attr.preference_score > 4 ? "green" : attr.preference_score > 3 ? "blue" : "gray"}
+                      colorScheme={attr.preference_score > 80 ? "green" : attr.preference_score > 60 ? "blue" : "gray"}
                       fontSize="0.8em"
                       borderRadius="full"
                       px={2}
                       variant="solid"
                     >
-                      {attr.preference_score === 5 ? "Perfect Match" : 
-                       attr.preference_score > 4 ? "Strong Match" :
-                       attr.preference_score > 3 ? "Good Match" :
-                       attr.preference_score > 2 ? "Fair Match" : "Basic Match"}
-                      {" "}{attr.preference_score}/5
+                      {attr.preference_score === 100 ? "Perfect Match" : 
+                       attr.preference_score > 80 ? "Strong Match" :
+                       attr.preference_score > 60 ? "Good Match" :
+                       attr.preference_score > 40 ? "Fair Match" : "Basic Match"}
+                      {" "}{attr.preference_score}%
                     </Badge>
                   )}
                 </Flex>
